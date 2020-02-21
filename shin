@@ -1,1 +1,90 @@
 #!/bin/sh
+# Create a temporary file.
+scratch=`mktemp`
+recover(){
+    echo -n 'Checking results...'
+    # Recover from bad parse.
+    if [ "`du -b \"$file\" | awk -v FS=' ' '{print $1}'`" = "0" ]; then
+        mv $file~ $file
+        echo 'An error occurred, changes reverted!' 
+    else
+        echo 'Good.'
+    fi
+}
+
+for file in $@; do
+# Remove extraneous spaces and unindent file.
+   sed -e 's/\s\s*$//g' -e '/^\s*$/d' -e 's/^\s\s*//g' $file > $scratch
+   mv $file $file~
+   mv $scratch $file
+   recover
+   awk '
+BEGIN{
+    # Current indentation level
+    level=0
+    # Number of spaces per indentation
+    spaces=4 
+    # Inside a case statement?
+    in_case=0
+    # In continuation already?
+    continued=0
+    # How many lines have we read?
+    lines=0
+    # How many lines have we indented?
+    count=0
+}
+function indent(){
+    end=level*spaces
+    for (i=0; i<end; ++i){
+        printf(" ");
+    }
+    ++count
+    printf count ":" lines ":" level ", " > "/dev/stderr"
+}
+{++lines} 
+/^esac/ {
+    in_case--
+}
+! /\\$/{ 
+    if(continued>0){
+        --level
+        continued=0
+    }
+}
+/^fi$/ || /^done$/ || /; done/ || /^esac$/ {
+    --level
+}
+{ ### ^- CLOSING ELEMENTS -^ ###
+    indent()
+    print $0
+} ### v- OPENING ELEMENTS-v ###
+/^case/ {
+    in_case++
+}
+/;;$/{
+    if(in_case>0){
+        --level
+    }
+}
+/^for\s/ || /^do\s/ || /^while\s/ || /^case/ || /^if/ {
+    ++level
+}
+/\\$/{
+    if(continued==0){
+        ++level
+        continued=1
+    }
+}
+/^.*)/ { # each case
+    if(in_case > 0){
+        ++level
+    }
+}
+END{
+    print "" > "/dev/stderr"
+}
+   ' $file > $scratch; mv $file $file~; mv $scratch $file
+   recover
+done
+# Clean before termination.
+rm -rf scratch
