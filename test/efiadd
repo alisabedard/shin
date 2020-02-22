@@ -1,0 +1,91 @@
+#!/bin/sh
+# Define globals and defaults
+DISK=/dev/sda
+ROOTPART=3
+UCODE=false
+INITRD=false
+SYSTEMD=false
+TOMOYO=false
+FSCK=false
+QUEIT=false
+CMDLN="ro"
+LOADER="kjb"
+LABEL="Linux"
+setup_cmdln()
+{
+    CMDLN="$CMDLN root=${DISK}${ROOTPART}"
+    if $UCODE; then
+        CMDLN="initrd=/intel-ucode.img $CMDLN"
+    fi
+    if $INITRD; then
+        CMDLN="$CMDLN initrd=/initramfs-linux.img"
+    fi
+    if $SYSTEMD; then
+        CMDLN="$CMDLN init=/usr/lib/systemd/systemd"
+    fi
+    if $TOMOYO; then
+        CMDLN="$CMDLN security=tomoyo"
+    fi
+    if $FSCK; then
+        CMDLN="$CMDLN fsck.mode=force"
+    fi
+    if $QUIET; then
+        CMDLN="$CMDLN quiet"
+    fi
+}
+run_efibootmgr()
+{
+    echo "Adding $LABEL:$LOADER - $CMDLN"
+    LOADER="$LPREFIX$LOADER"
+    echo efibootmgr -c -d $DISK -p 1 -L "$LABEL" -l $LOADER -u "$CMDLN" -v
+    sudo efibootmgr -c -d $DISK -p 1 -L "$LABEL" -l $LOADER -u "$CMDLN" -v
+}
+OPTSTRING="afghl:k:K:p:qsu"
+while getopts $OPTSTRING opt; do
+    case $opt in
+        'a')	echo 'Setting Arch Linux options'
+            SYSTEMD=true
+            INITRD=true
+            LABEL='Arch'
+            LOADER='vmlinuz-linux'
+            UCODE=true
+            ;;
+        'f')	echo 'Setting FSCK options'
+            FSCK=true;
+            LABEL="FSCK"
+            ;;
+        'g')	echo 'Setting Gentoo options'
+            SYSTEMD=false
+            UCODE=false
+            ;;
+        'l')	LABEL=$OPTARG
+            ;;
+        'k')	LOADER=$OPTARG
+            ;;
+        'K')	LABEL=$OPTARG
+            LOADER=$OPTARG
+            ;;
+        'p')	ROOTPART=$OPTARG
+            ;;
+        'q')	QUIET=true;
+            ;;
+        'S')	# Set slackware defaults
+            LOADER=vmlinuz-huge
+            LABEL='Slackware'
+            ;;
+        's')	echo 'Disabling systemd'
+            SYSTEMD=false
+            ;;
+        'T')	echo 'Using TOMOYO'
+            TOMOYO=true
+            ;;
+        'u')	echo 'Using Intel UCODE'
+            UCODE=true
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+setup_cmdln
+# Append remaining arguments to the kernel command line
+CMDLN="$CMDLN $@"
+run_efibootmgr
