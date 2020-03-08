@@ -46,9 +46,13 @@ function indent(){
     in_case--
 }
 ! /\\$/{ 
+    # Terminate a continuation sequence.
     if(continued>0){
+        indent()
+        print $0
         --level
         continued=0
+        next
     }
 }
 /^fi$/ || /^done$/ || /; done/ || /^esac$/ || /^}/ {
