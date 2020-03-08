@@ -99,3 +99,5 @@ END{
 done
 # Clean before termination.
 rm -rf scratch
+# Make sure the script remains executable.
+chmod 755 $file
