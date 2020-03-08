@@ -54,6 +54,13 @@ function indent(){
 /^fi$/ || /^done$/ || /; done/ || /^esac$/ || /^}/ {
     --level
 }
+/^else/ || /^elif/ {
+    --level
+    indent()
+    print $0
+    ++level
+    next
+}
 { ### ^- CLOSING ELEMENTS -^ ###
     indent()
     print $0
