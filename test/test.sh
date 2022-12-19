@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2020, Jeffrey E. Bedard
+# Copyright 2020, Alisa Bedard
 OS=`uname -s`
 CF=config.mk
 echo "# Configuration for $OS" > $CF
